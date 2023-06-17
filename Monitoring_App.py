@@ -55,7 +55,8 @@ if not os.path.exists(log_file_path_apps):
 if os.path.exists(log_file_path_apps):
     # File sudah ada, lakukan penanganan yang sesuai
     # Misalnya, tampilkan pesan error atau keluar dari program.
-    print("File log sudah ada.")
+    pass
+    # print("File log sudah ada.")
 
 
 def main():
@@ -82,7 +83,7 @@ def create_log_files(log_files_apps):
     if not os.path.exists(directory_path_localappdata):
         # Membuat direktori jika tidak ada
         os.makedirs(directory_path_localappdata)
-        print("directory belum ada")
+        # print("directory belum ada")
 
 
 def on_press(key):
@@ -109,7 +110,7 @@ def listen_keyboard():
         while True:
             stop_event.wait(1)  # Menunggu interval 1 detik
             if is_typing:  # Jika sedang mengetik
-                print("keyboard")
+                # print("keyboard")
                 timestamp = datetime.datetime.now(pytz.utc).isoformat()
                 try:
                     with open(log_file_path_apps, "r", encoding="utf-8") as file:
@@ -181,11 +182,12 @@ def listen_apps():
         if current_window and current_window != initial_window and current_window.get("exe"):
             last_activity_time = time.time()
             if not current_window == 'C:\\Windows\\explorer.exe' and initial_window.get("title") != '':
-                if active_window_start_time is not None:
-                    duration = (current_timestamp -
-                                active_window_start_time).total_seconds()
-                    log_application("active_window", duration,
-                                    initial_window, active_window_start_time)
+                if not current_window == 'C:\\Windows\\explorer.exe' and initial_window.get("title") != 'Task Switching':
+                    if active_window_start_time is not None:
+                        duration = (current_timestamp -
+                                    active_window_start_time).total_seconds()
+                        log_application("active_window", duration,
+                                        initial_window, active_window_start_time)
             initial_window = current_window
             active_window_start_time = current_timestamp
 
@@ -197,7 +199,7 @@ def log_application(event, duration, window, active_window_start_time):
 
     active_window_start_time
     if event == "active_window":  # Jika event adalah perubahan jendela aktif
-        print("window")
+        # print("window")
         timestamp = datetime.datetime.now(pytz.utc).isoformat()
         log_entry = {
             "timestamp": timestamp,
@@ -283,15 +285,15 @@ def check_and_log_activity():
                 # Durasi awal sebelum status diubah menjadi "afk"
                 statusnow = "afk"
                 log_not_afk(duration)
-                print("status afk, durasi dari not afk sampai afk:",
-                      duration, "Detik")
+                # print("status afk, durasi dari not afk sampai afk:",
+                #       duration, "Detik")
         elif statusnow == "afk":
             if current_time - last_activity_time < afk_timeout:
                 duration = current_time - afk_start_time
                 statusnow = "not-afk"
                 log_afk(duration)
-                print("Status NOT AFK, durasi dari afk sampai not afk:",
-                      duration, "Detik")
+                # print("Status NOT AFK, durasi dari afk sampai not afk:",
+                #       duration, "Detik")
         time.sleep(1)
 
 
