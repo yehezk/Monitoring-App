@@ -30,6 +30,7 @@ last_activity_time = time.time()
 last_window = None
 last_window_duration = 0
 
+# structure json
 log_structure = {
     "buckets": {
         "aw-watcher-window": {
@@ -43,20 +44,6 @@ log_structure = {
         }
     }
 }
-
-# Cek keberadaan file log aplikasi
-if not os.path.exists(log_file_path_apps):
-    # Jika file log aplikasi tidak ada, buat file baru
-    # Menulis struktur awal ke file log
-    print("File log tidak ada.")
-    with open(log_file_path_apps, "w", encoding="utf-8") as file:
-        json.dump(log_structure, file, indent=4)
-
-if os.path.exists(log_file_path_apps):
-    # File sudah ada, lakukan penanganan yang sesuai
-    # Misalnya, tampilkan pesan error atau keluar dari program.
-    pass
-    # print("File log sudah ada.")
 
 
 def main():
@@ -79,11 +66,23 @@ def create_log_files(log_files_apps):
     """
     Membuat file log keyboard dan log aplikasi jika tidak ada.
     """
-   # Mengecek apakah direktori tidak ada
+    # Mengecek apakah direktori tidak ada
     if not os.path.exists(directory_path_localappdata):
         # Membuat direktori jika tidak ada
         os.makedirs(directory_path_localappdata)
         # print("directory belum ada")
+    if os.path.exists(log_file_path_apps):
+        # File sudah ada, lakukan penanganan yang sesuai
+        # Misalnya, tampilkan pesan error atau keluar dari program.
+        pass
+        # print("File log sudah ada.")
+        # Cek keberadaan file log aplikasi
+    if not os.path.exists(log_file_path_apps):
+        # Jika file log aplikasi tidak ada, buat file baru
+        # Menulis struktur awal ke file log
+        # print("File log tidak ada.")
+        with open(log_file_path_apps, "w", encoding="utf-8") as file:
+            json.dump(log_structure, file, indent=4)
 
 
 def on_press(key):
