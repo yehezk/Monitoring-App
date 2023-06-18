@@ -114,7 +114,7 @@ def listen_keyboard():
                 try:
                     with open(log_file_path_apps, "r", encoding="utf-8") as file:
                         log_data = json.load(file)
-                except (FileNotFoundError, json.decoder.JSONDecodeError):
+                except (FileNotFoundError, json.decoder.JSONDecodeError, KeyError):
                     log_data = {}
 
                 log_entry = {
@@ -211,7 +211,7 @@ def log_application(event, duration, window, active_window_start_time):
         try:
             with open(log_file_path_apps, "r", encoding="utf-8") as file:
                 log_data = json.load(file)
-        except (FileNotFoundError, json.decoder.JSONDecodeError):
+        except (FileNotFoundError, json.decoder.JSONDecodeError, KeyError):
             log_data = {}
 
         log_data["buckets"]["aw-watcher-window"]["events"].append(log_entry)
@@ -227,7 +227,7 @@ def log_afk(duration):
     try:
         with open(log_file_path_apps, "r", encoding="utf-8") as file:
             log_data = json.load(file)
-    except (FileNotFoundError, json.decoder.JSONDecodeError):
+    except (FileNotFoundError, json.decoder.JSONDecodeError, KeyError):
         log_data = {}
 
     afk_entry = {
@@ -251,7 +251,7 @@ def log_not_afk(duration):
     try:
         with open(log_file_path_apps, "r", encoding="utf-8") as file:
             log_data = json.load(file)
-    except (FileNotFoundError, json.decoder.JSONDecodeError):
+    except (FileNotFoundError, json.decoder.JSONDecodeError, KeyError):
         log_data = {}
 
     not_afk_entry = {
@@ -271,7 +271,7 @@ def log_not_afk(duration):
 def check_and_log_activity():
     global last_activity_time, program_start_time
 
-    afk_timeout = 900  # Timeout AFK 15 menit
+    afk_timeout = 900     # Timeout AFK 15 menit
     afk_start_time = None
     statusnow = "not-afk"  # Status awal "not-afk"
 
