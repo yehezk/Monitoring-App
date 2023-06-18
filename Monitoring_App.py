@@ -50,7 +50,7 @@ def main():
     """
     Fungsi utama yang menjalankan program.
     """
-    create_log_files(log_file_apps)  # Membuat file log jika tidak ada
+    create_log_files()  # Membuat file log jika tidak ada
     # Membuat thread untuk mendengarkan keyboard
     listener_thread_key = threading.Thread(target=listen_keyboard)
     listener_thread_key.start()  # Memulai thread mendengarkan keyboard
@@ -62,7 +62,7 @@ def main():
     activity_thread.start()
 
 
-def create_log_files(log_files_apps):
+def create_log_files():
     """
     Membuat file log keyboard dan log aplikasi jika tidak ada.
     """
