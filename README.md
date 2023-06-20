@@ -1,3 +1,3 @@
 # Monitoring-App
 
-compile : pyinstaller Monitoring.App.py --noconsole
+compile : pyinstaller Monitoring_App.py --noconsole
