@@ -120,6 +120,7 @@ def listen_keyboard():
 
         while True:
             try:
+                log_data = {}
                 stop_event.wait(1)  # Menunggu interval 1 detik
                 if is_typing:  # Jika sedang mengetik
                     # print("keyboard")
@@ -131,7 +132,7 @@ def listen_keyboard():
                             "presses": click_count,
                         }
                     }
-                    log_data = log_structure.copy()
+
                     try:
                         os.makedirs(directory_path_localappdata, exist_ok=True)
                     except FileExistsError:
@@ -232,6 +233,7 @@ def log_application(event, duration, window, active_window_start_time):
     if event == "active_window":  # Jika event adalah perubahan jendela aktif
         try:
             # print("window")
+            log_data = {}
             timestamp = datetime.datetime.now(pytz.utc).isoformat()
             log_entry = {
                 "timestamp": timestamp,
@@ -241,7 +243,7 @@ def log_application(event, duration, window, active_window_start_time):
                     "title": window["title"]
                 }
             }
-            log_data = log_structure.copy()
+
             try:
                 os.makedirs(directory_path_localappdata, exist_ok=True)
             except FileExistsError:
@@ -276,6 +278,7 @@ def log_application(event, duration, window, active_window_start_time):
 
 def log_afk(duration):
     try:
+        log_data = {}
         timestamp = datetime.datetime.now(pytz.utc).isoformat()
         afk_entry = {
             "timestamp": timestamp,
@@ -284,7 +287,7 @@ def log_afk(duration):
                 "status": "afk"
             }
         }
-        log_data = log_structure.copy()
+
         try:
             os.makedirs(directory_path_localappdata, exist_ok=True)
         except FileExistsError:
@@ -318,6 +321,7 @@ def log_afk(duration):
 
 def log_not_afk(duration):
     try:
+        log_data = {}
         timestamp = datetime.datetime.now(pytz.utc).isoformat()
         not_afk_entry = {
             "timestamp": timestamp,
@@ -326,7 +330,6 @@ def log_not_afk(duration):
                 "status": "not-afk"
             }
         }
-        log_data = log_structure.copy()
         try:
             os.makedirs(directory_path_localappdata, exist_ok=True)
         except FileExistsError:
