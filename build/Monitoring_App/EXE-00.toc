@@ -46,6 +46,9 @@
   ('pyi_rth_inspect',
    'C:\\Users\\YEHEZKIEL\\AppData\\Local\\Programs\\Python\\Python310\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks\\pyi_rth_inspect.py',
    'PYSOURCE'),
+  ('pyi_rth_pywintypes',
+   'C:\\Users\\YEHEZKIEL\\AppData\\Local\\Programs\\Python\\Python310\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\hooks\\rthooks\\pyi_rth_pywintypes.py',
+   'PYSOURCE'),
   ('pyi_rth_pkgutil',
    'C:\\Users\\YEHEZKIEL\\AppData\\Local\\Programs\\Python\\Python310\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks\\pyi_rth_pkgutil.py',
    'PYSOURCE'),
@@ -61,7 +64,7 @@
  [],
  False,
  False,
- 1687340138,
+ 1687745736,
  [('runw.exe',
    'C:\\Users\\YEHEZKIEL\\AppData\\Local\\Programs\\Python\\Python310\\lib\\site-packages\\PyInstaller\\bootloader\\Windows-64bit-intel\\runw.exe',
    'EXECUTABLE')])

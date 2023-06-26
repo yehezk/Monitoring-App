@@ -9,27 +9,33 @@ import psutil
 import pytz
 import time
 import traceback
+import socket
+import paramiko
+import schedule
+from scp import SCPClient
 
 # Mendapatkan path ke direktori %localappdata%
 local_app_data = os.getenv('LOCALAPPDATA')
 
+# get device name
+hostname = socket.gethostname()
+
 # Membuat direktori MonitoringApp di %localappdata%
 directory_path_localappdata = os.path.join(local_app_data, 'MonitoringApp')
 
-log_file_apps = "log_apps.json"  # Nama file log aplikasi
+log_file_apps = "log_apps_" + hostname + ".json"  # Nama file log aplikasi
 # Menggabungkan path file log aplikasi
 log_file_path_apps = os.path.join(directory_path_localappdata, log_file_apps)
 
+# variabel stop event
 stop_event = threading.Event()  # Membuat objek threading.Event()
-stop_event.initial_processes = []  # Menyimpan proses awal
+
+# variabel global untuk fungsi
 initial_window = None
-click_count = 0
+click_count = 0  # Menghitung jumlah klik
 program_start_time = time.time()  # Waktu mulai program
-is_typing = False
-active_window_start_time = None
+is_typing = False  # Menyimpan status False sebagai inisiasi awal
 last_activity_time = time.time()
-last_window = None
-last_window_duration = 0
 
 # structure json
 log_structure = {
@@ -47,6 +53,83 @@ log_structure = {
 }
 
 
+def main():
+    """
+    Fungsi utama yang menjalankan program.
+    """
+    create_log_files()  # Membuat file log jika tidak ada
+
+    # Membuat thread untuk mendengarkan keyboard
+    listener_thread_key = threading.Thread(target=listen_keyboard)
+    listener_thread_key.start()  # Memulai thread mendengarkan keyboard
+
+    # Membuat thread untuk mendengarkan aplikasi
+    listener_thread_apps = threading.Thread(target=listen_apps)
+    listener_thread_apps.start()  # Memulai thread mendengarkan aplikasi
+
+    # Thread untuk memantau aktivitas keyboard
+    activity_thread = threading.Thread(target=check_and_log_activity)
+    activity_thread.start()
+    # Menjadwalkan fungsi run_upload setiap 1 menit
+    schedule.every(1).minutes.do(run_upload)
+
+    # Looping untuk menjalankan jadwal tugas
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
+
+
+def run_upload():
+    """
+    Fungsi yang menjalankan upload file.
+    """
+    # Pengaturan koneksi SCP
+    hostname = "185.207.9.74"
+    port = 22
+    username = "root"
+    password = "43RGtfYy2k"
+    # Path file lokal dan remote
+    local_file_path = log_file_path_apps
+    remote_file_path = "/var/www/html/data/" + log_file_apps
+
+    send_file_sftp(hostname, port, username, password,
+                   local_file_path, remote_file_path)
+
+
+def send_file_sftp(hostname, port, username, password, local_file_path, remote_file_path):
+    try:
+        # Membuat objek SSHClient
+        client = paramiko.SSHClient()
+        client.load_system_host_keys()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+        # Menghubungkan ke server SSH menggunakan informasi yang diberikan
+        client.connect(hostname, port=port,
+                       username=username, password=password)
+
+        # Membuat objek SCPClient dengan menggunakan koneksi SSH
+        scp_client = SCPClient(client.get_transport())
+        # Menyalin file lokal ke server menggunakan SCP
+        scp_client.put(local_file_path, remote_file_path)
+        scp_client.close()  # Menutup koneksi SCP
+
+        client.close()  # Menutup koneksi SSH
+        print("File transferred successfully!")
+    except paramiko.AuthenticationException as auth_error:
+        error_message = f"Authentication failed: {str(auth_error)}"
+        log_error(error_message)
+        traceback.print_exc()
+    except paramiko.SSHException as ssh_error:
+        error_message = f"SSH connection failed: {str(ssh_error)}"
+        log_error(error_message)
+        traceback.print_exc()
+
+    except Exception as e:
+        error_message = f"Error occurred while transferring the file: {str(e)}"
+        log_error(error_message)
+        traceback.print_exc()
+
+
 def log_error(error_message):
     """
     Menyimpan pesan error ke file log khusus.
@@ -56,22 +139,6 @@ def log_error(error_message):
 
     with open(error_log_path, "a", encoding="utf-8") as file:
         file.write(f"{datetime.datetime.now()}: {error_message}\n")
-
-
-def main():
-    """
-    Fungsi utama yang menjalankan program.
-    """
-    create_log_files()  # Membuat file log jika tidak ada
-    # Membuat thread untuk mendengarkan keyboard
-    listener_thread_key = threading.Thread(target=listen_keyboard)
-    listener_thread_key.start()  # Memulai thread mendengarkan keyboard
-    # Membuat thread untuk mendengarkan aplikasi
-    listener_thread_apps = threading.Thread(target=listen_apps)
-    listener_thread_apps.start()  # Memulai thread mendengarkan aplikasi
-    # Thread untuk memantau aktivitas keyboard
-    activity_thread = threading.Thread(target=check_and_log_activity)
-    activity_thread.start()
 
 
 def create_log_files():
@@ -114,16 +181,14 @@ def listen_keyboard():
     """
     Fungsi untuk mendengarkan keyboard menggunakan pynput.
     """
-    global is_typing, click_count,  last_activity_time
+    global is_typing, click_count
 
     with Listener(on_press=on_press):
-
         while True:
             try:
                 log_data = {}
                 stop_event.wait(1)  # Menunggu interval 1 detik
                 if is_typing:  # Jika sedang mengetik
-                    # print("keyboard")
                     timestamp = datetime.datetime.now(pytz.utc).isoformat()
                     log_entry = {
                         "timestamp": timestamp,
@@ -147,15 +212,19 @@ def listen_keyboard():
                     except (json.decoder.JSONDecodeError, KeyError):
                         log_data = log_structure.get("buckets", {}).get(
                             "aw-watcher-input", {}).get("events", [])
-                        print("key" + str(log_data))
+                    except (TypeError):
+                        log_data = log_structure.get("buckets", {}).get(
+                            "aw-watcher-input", {}).get("events", [])
 
-                    if "buckets" not in log_data:
-                        log_data["buckets"] = log_structure["buckets"]
-                    buckets = log_data.get("buckets", {})
-                    if "aw-watcher-input" not in log_data["buckets"]:
-                        log_data["buckets"]["aw-watcher-input"] = log_structure["buckets"]["aw-watcher-input"]
-                    events = buckets.get(
-                        "aw-watcher-input", {}).get("events", [])
+                    # if "buckets" not in log_data:
+                    #     log_data["buckets"] = log_structure["buckets"]
+                    # buckets = log_data.get("buckets", {})
+                    # if "aw-watcher-input" not in log_data["buckets"]:
+                    #     log_data["buckets"]["aw-watcher-input"] = log_structure["buckets"]["aw-watcher-input"]
+                    # events = buckets.get(
+                    #     "aw-watcher-input", {}).get("events", [])
+                    # events.append(log_entry)
+                    events = log_data["buckets"]["aw-watcher-input"]["events"]
                     events.append(log_entry)
 
                     with open(log_file_path_apps, "w", encoding="utf-8") as file:
@@ -210,6 +279,7 @@ def listen_apps():
     active_window_start_time = None
 
     while not stop_event.is_set():
+
         current_window = get_active_window()
         current_timestamp = datetime.datetime.now()
         if current_window and current_window != initial_window and current_window.get("exe"):
@@ -257,15 +327,31 @@ def log_application(event, duration, window, active_window_start_time):
             except (json.decoder.JSONDecodeError, KeyError):
                 log_data = log_structure.get("buckets", {}).get(
                     "aw-watcher-window", {}).get("events", [])
+            except (TypeError):
+                log_data = log_structure.get("buckets", {}).get(
+                    "aw-watcher-window", {}).get("events", [])
 
-            if "buckets" not in log_data:
-                log_data["buckets"] = log_structure["buckets"]
-                print("window, buckets not in log data" + str(log_data))
-            buckets = log_data.get("buckets", {})
-            if "aw-watcher-window" not in log_data["buckets"]:
-                print("aw-watcher-window, buckets not in log data" + str(log_data))
-                log_data["buckets"]["aw-watcher-window"] = log_structure["buckets"]["aw-watcher-window"]
-            events = buckets.get("aw-watcher-window", {}).get("events", [])
+            # if "buckets" not in log_data:
+            #     # Periksa apakah log_structure["buckets"] adalah dictionary
+            #     if isinstance(log_structure["buckets"], dict):
+            #         log_data["buckets"] = log_structure["buckets"]
+            #     else:
+            #         # Lakukan tindakan yang sesuai jika log_structure["buckets"] bukan dictionary
+            #         # Misalnya, inisialisasi log_data["buckets"] sebagai dictionary kosong
+            #         log_data["buckets"] = {}
+            # buckets = log_data.get("buckets", {})
+            # if "aw-watcher-window" not in log_data["buckets"]:
+            #     log_data["buckets"]["aw-watcher-window"] = log_structure["buckets"]["aw-watcher-window"]
+            # events = buckets.get("aw-watcher-window", {}).get("events", [])
+            # events.append(log_entry)
+
+            # if "buckets" not in log_data:
+            #     log_data["buckets"] = {}
+
+            # if "aw-watcher-window" not in log_data["buckets"]:
+            #     log_data["buckets"]["aw-watcher-window"] = {"events": []}
+
+            events = log_data["buckets"]["aw-watcher-window"]["events"]
             events.append(log_entry)
 
             with open(log_file_path_apps, "w", encoding="utf-8") as file:
@@ -301,14 +387,16 @@ def log_afk(duration):
         except (json.decoder.JSONDecodeError, KeyError):
             log_data = log_structure.get("buckets", {}).get(
                 "aw-watcher-afk", {}).get("events", [])
+        except (TypeError):
+            log_data = log_structure.get("buckets", {}).get(
+                "aw-watcher-afk", {}).get("events", [])
 
-        if "buckets" not in log_data:
-            log_data["buckets"] = log_structure["buckets"]
-        buckets = log_data.get("buckets", {})
-        if "aw-watcher-afk" not in log_data["buckets"]:
-            log_data["afk"]["aw-watcher-afk"] = log_structure["buckets"]["aw-watcher-afk"]
-        events = buckets.get(
-            "aw-watcher-afk", {}).get("events", [])
+        # if "buckets" not in log_data:
+        #     log_data["buckets"] = log_structure["buckets"]
+        # buckets = log_data.get("buckets", {})
+        # if "aw-watcher-afk" not in log_data["buckets"]:
+        #     log_data["buckets"]["aw-watcher-afk"] = log_structure["buckets"]["aw-watcher-afk"]
+        events = log_data["buckets"]["aw-watcher-afk"]["events"]
         events.append(afk_entry)
 
         with open(log_file_path_apps, "w", encoding="utf-8") as file:
@@ -343,14 +431,20 @@ def log_not_afk(duration):
         except (json.decoder.JSONDecodeError, KeyError):
             log_data = log_structure.get("buckets", {}).get(
                 "aw-watcher-afk", {}).get("events", [])
+        except (TypeError):
+            log_data = log_structure.get("buckets", {}).get(
+                "aw-watcher-afk", {}).get("events", [])
 
-        if "buckets" not in log_data:
-            log_data["buckets"] = log_structure["buckets"]
-        buckets = log_data.get("buckets", {})
-        if "aw-watcher-afk" not in log_data["buckets"]:
-            log_data["afk"]["aw-watcher-afk"] = log_structure["buckets"]["aw-watcher-afk"]
-        events = buckets.get(
-            "aw-watcher-afk", {}).get("events", [])
+        # if "buckets" not in log_data:
+        #     log_data["buckets"] = log_structure["buckets"]
+        # buckets = log_data.get("buckets", {})
+        # if "aw-watcher-afk" not in log_data["buckets"]:
+        #     log_data["buckets"]["aw-watcher-afk"] = log_structure["buckets"]["aw-watcher-afk"]
+        # events = buckets.get(
+        #     "aw-watcher-afk", {}).get("events", [])
+        # events.append(not_afk_entry)
+
+        events = log_data["buckets"]["aw-watcher-afk"]["events"]
         events.append(not_afk_entry)
 
         with open(log_file_path_apps, "w", encoding="utf-8") as file:
@@ -363,13 +457,20 @@ def log_not_afk(duration):
 
 def check_and_log_activity():
     global last_activity_time, program_start_time
-
-    afk_timeout = 900    # Timeout AFK 15 menit
+    afk_timeout = 900  # Timeout AFK 15 menit
     afk_start_time = None
+    not_afk_start_time = None
     statusnow = "not-afk"  # Status awal "not-afk"
-
     while True:
         current_time = time.time()
+        if statusnow == "not-afk":
+            time.sleep(afk_timeout)
+            not_afk_start_time = time.time()
+            duration = not_afk_start_time - current_time
+            # print("cetak durasi dari not afk :",
+            #       duration, "Detik")
+            log_not_afk(duration)
+            time.sleep(afk_timeout)
         if statusnow == "not-afk":
             if current_time - last_activity_time >= afk_timeout:
                 afk_start_time = time.time()
@@ -377,14 +478,15 @@ def check_and_log_activity():
                 # Durasi awal sebelum status diubah menjadi "afk"
                 statusnow = "afk"
                 log_not_afk(duration)
-                # print("status afk, durasi dari not afk sampai afk:",
+                # print("cetak durasi dari not afk sampai afk:",
                 #       duration, "Detik")
         elif statusnow == "afk":
             if current_time - last_activity_time < afk_timeout:
                 duration = current_time - afk_start_time
                 statusnow = "not-afk"
                 log_afk(duration)
-                # print("Status NOT AFK, durasi dari afk sampai not afk:",
+                program_start_time = time.time()
+                # print("cetak durasi dari afk sampai not afk:",
                 #       duration, "Detik")
         time.sleep(1)
 
