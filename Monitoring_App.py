@@ -212,7 +212,6 @@ def listen_keyboard():
                     except (json.decoder.JSONDecodeError, KeyError):
                         log_data = log_structure.get("buckets", {}).get(
                             "aw-watcher-input", {}).get("events", [])
-                        print("key" + str(log_data))
 
                     if "buckets" not in log_data:
                         log_data["buckets"] = log_structure["buckets"]
@@ -326,10 +325,8 @@ def log_application(event, duration, window, active_window_start_time):
 
             if "buckets" not in log_data:
                 log_data["buckets"] = log_structure["buckets"]
-                print("window, buckets not in log data" + str(log_data))
             buckets = log_data.get("buckets", {})
             if "aw-watcher-window" not in log_data["buckets"]:
-                print("aw-watcher-window, buckets not in log data" + str(log_data))
                 log_data["buckets"]["aw-watcher-window"] = log_structure["buckets"]["aw-watcher-window"]
             events = buckets.get("aw-watcher-window", {}).get("events", [])
             events.append(log_entry)
@@ -372,7 +369,7 @@ def log_afk(duration):
             log_data["buckets"] = log_structure["buckets"]
         buckets = log_data.get("buckets", {})
         if "aw-watcher-afk" not in log_data["buckets"]:
-            log_data["afk"]["aw-watcher-afk"] = log_structure["buckets"]["aw-watcher-afk"]
+            log_data["buckets"]["aw-watcher-afk"] = log_structure["buckets"]["aw-watcher-afk"]
         events = buckets.get(
             "aw-watcher-afk", {}).get("events", [])
         events.append(afk_entry)
@@ -414,7 +411,7 @@ def log_not_afk(duration):
             log_data["buckets"] = log_structure["buckets"]
         buckets = log_data.get("buckets", {})
         if "aw-watcher-afk" not in log_data["buckets"]:
-            log_data["afk"]["aw-watcher-afk"] = log_structure["buckets"]["aw-watcher-afk"]
+            log_data["buckets"]["aw-watcher-afk"] = log_structure["buckets"]["aw-watcher-afk"]
         events = buckets.get(
             "aw-watcher-afk", {}).get("events", [])
         events.append(not_afk_entry)
@@ -429,12 +426,20 @@ def log_not_afk(duration):
 
 def check_and_log_activity():
     global last_activity_time, program_start_time
-
-    afk_timeout = 900   # Timeout AFK 15 menit
+    afk_timeout = 900  # Timeout AFK 15 menit
     afk_start_time = None
+    not_afk_start_time = None
     statusnow = "not-afk"  # Status awal "not-afk"
     while True:
         current_time = time.time()
+        if statusnow == "not-afk":
+            time.sleep(afk_timeout)
+            not_afk_start_time = time.time()
+            duration = not_afk_start_time - current_time
+            print("cetak durasi dari not afk :",
+                  duration, "Detik")
+            log_not_afk(duration)
+            time.sleep(afk_timeout)
         if statusnow == "not-afk":
             if current_time - last_activity_time >= afk_timeout:
                 afk_start_time = time.time()
