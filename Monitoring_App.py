@@ -76,7 +76,6 @@ def main():
     # Looping untuk menjalankan jadwal tugas
     while True:
         schedule.run_pending()
-        time.sleep(1)
 
 
 def run_upload():
@@ -291,8 +290,12 @@ def listen_apps():
                     log_application("active_window", duration,
                                     initial_window, active_window_start_time)
 
-            active_window_start_time = current_timestamp
-            initial_window = current_window
+            # Tambahkan pengecualian untuk 'explorer.exe' saat melakukan Alt+Tab
+            if current_window == 'C:\\Windows\\explorer.exe':
+                active_window_start_time = datetime.datetime.now()
+            else:
+                active_window_start_time = datetime.datetime.now()
+                initial_window = current_window
 
 
 def log_application(event, duration, window, active_window_start_time):
@@ -457,7 +460,7 @@ def log_not_afk(duration):
 
 def check_and_log_activity():
     global last_activity_time, program_start_time
-    afk_timeout = 10  # Timeout AFK 15 menit
+    afk_timeout = 20  # Timeout AFK 15 menit
     afk_start_time = None
     not_afk_start_time = None
     statusnow = "not-afk"  # Status awal "not-afk"
@@ -466,17 +469,19 @@ def check_and_log_activity():
         if statusnow == "not-afk":
             time.sleep(afk_timeout)
             not_afk_start_time = time.time()
-            duration = not_afk_start_time - program_start_time
-            print("cetak durasi dari not afk :",
-                  duration, "Detik")
+            duration = not_afk_start_time - current_time + 1
             log_not_afk(duration)
+            # print("cetak durasi dari not afk :",
+            #       duration, "Detik")
+
         if statusnow == "not-afk":
             if current_time - last_activity_time >= afk_timeout:
-                afk_start_time = time.time()
-                duration = afk_start_time - program_start_time
-                # Durasi awal sebelum status diubah menjadi "afk"
                 statusnow = "afk"
-                log_not_afk(duration)
+                afk_start_time = time.time()
+                # duration = afk_start_time - program_start_time
+                # Durasi awal sebelum status diubah menjadi "afk"
+
+                # log_not_afk(duration)
                 # print("cetak durasi dari not afk sampai afk:",
                 #       duration, "Detik")
         elif statusnow == "afk":
@@ -485,9 +490,8 @@ def check_and_log_activity():
                 statusnow = "not-afk"
                 log_afk(duration)
                 program_start_time = time.time()
-                print("cetak durasi dari afk sampai not afk:",
-                      duration, "Detik")
-        time.sleep(1)
+                # print("cetak durasi dari afk sampai not afk:",
+                #       duration, "Detik")
 
 
 if __name__ == '__main__':
