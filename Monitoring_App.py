@@ -262,7 +262,7 @@ def get_active_window():
             "exe": active_window_exe,
             "title": active_window_title
         }
-    except (psutil.AccessDenied, psutil.NoSuchProcess, psutil.ZombieProcess):
+    except (psutil.AccessDenied, psutil.NoSuchProcess):
         pass
 
     return active_window
@@ -275,24 +275,24 @@ def listen_apps():
     global initial_window, last_activity_time  # variabel global
 
     initial_window = get_active_window()
-
-    active_window_start_time = None
+    active_window_start_time = datetime.datetime.now()
 
     while not stop_event.is_set():
-
-        current_window = get_active_window()
         current_timestamp = datetime.datetime.now()
+        current_window = get_active_window()
+
         if current_window and current_window != initial_window and current_window.get("exe"):
             last_activity_time = time.time()
-            if not current_window == 'C:\\Windows\\explorer.exe' and initial_window.get("title") != '':
-                if not current_window == 'C:\\Windows\\explorer.exe' and initial_window.get("title") != 'Task Switching':
-                    if active_window_start_time is not None:
-                        duration = (current_timestamp -
-                                    active_window_start_time).total_seconds()
-                        log_application("active_window", duration,
-                                        initial_window, active_window_start_time)
-            initial_window = current_window
+
+            if initial_window and initial_window.get("title") != '':
+                if current_window != 'C:\\Windows\\explorer.exe' and initial_window.get("title") != 'Task Switching':
+                    duration = (current_timestamp -
+                                active_window_start_time).total_seconds()
+                    log_application("active_window", duration,
+                                    initial_window, active_window_start_time)
+
             active_window_start_time = current_timestamp
+            initial_window = current_window
 
 
 def log_application(event, duration, window, active_window_start_time):
@@ -464,12 +464,12 @@ def check_and_log_activity():
     while True:
         current_time = time.time()
         if statusnow == "not-afk":
+            time.sleep(afk_timeout)
             not_afk_start_time = time.time()
             duration = not_afk_start_time - program_start_time
-            # print("cetak durasi dari not afk :",
-            #       duration, "Detik")
+            print("cetak durasi dari not afk :",
+                  duration, "Detik")
             log_not_afk(duration)
-            time.sleep(afk_timeout)
         if statusnow == "not-afk":
             if current_time - last_activity_time >= afk_timeout:
                 afk_start_time = time.time()
@@ -485,8 +485,8 @@ def check_and_log_activity():
                 statusnow = "not-afk"
                 log_afk(duration)
                 program_start_time = time.time()
-                # print("cetak durasi dari afk sampai not afk:",
-                #       duration, "Detik")
+                print("cetak durasi dari afk sampai not afk:",
+                      duration, "Detik")
         time.sleep(1)
 
 
