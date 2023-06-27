@@ -215,14 +215,19 @@ def listen_keyboard():
                         log_data = log_structure.get("buckets", {}).get(
                             "aw-watcher-input", {}).get("events", [])
 
-                    # if "buckets" not in log_data:
-                    #     log_data["buckets"] = log_structure["buckets"]
-                    # buckets = log_data.get("buckets", {})
-                    # if "aw-watcher-input" not in log_data["buckets"]:
-                    #     log_data["buckets"]["aw-watcher-input"] = log_structure["buckets"]["aw-watcher-input"]
-                    # events = buckets.get(
-                    #     "aw-watcher-input", {}).get("events", [])
-                    # events.append(log_entry)
+                    if not isinstance(log_data, dict):
+                        log_data = {}  # Create a new dictionary if log_data is not a dictionary
+
+                    if "buckets" not in log_data:
+                        log_data["buckets"] = {}
+
+                    buckets = log_data.get("buckets", {})
+                    if not isinstance(buckets, dict):
+                        buckets = {}  # Create a new dictionary if buckets is not a dictionary
+
+                    if "aw-watcher-input" not in buckets:
+                        buckets["aw-watcher-input"] = {"events": []}
+
                     events = log_data["buckets"]["aw-watcher-input"]["events"]
                     events.append(log_entry)
 
@@ -334,27 +339,14 @@ def log_application(event, duration, window, active_window_start_time):
                 log_data = log_structure.get("buckets", {}).get(
                     "aw-watcher-window", {}).get("events", [])
 
-            # if "buckets" not in log_data:
-            #     # Periksa apakah log_structure["buckets"] adalah dictionary
-            #     if isinstance(log_structure["buckets"], dict):
-            #         log_data["buckets"] = log_structure["buckets"]
-            #     else:
-            #         # Lakukan tindakan yang sesuai jika log_structure["buckets"] bukan dictionary
-            #         # Misalnya, inisialisasi log_data["buckets"] sebagai dictionary kosong
-            #         log_data["buckets"] = {}
-            # buckets = log_data.get("buckets", {})
-            # if "aw-watcher-window" not in log_data["buckets"]:
-            #     log_data["buckets"]["aw-watcher-window"] = log_structure["buckets"]["aw-watcher-window"]
-            # events = buckets.get("aw-watcher-window", {}).get("events", [])
-            # events.append(log_entry)
+            if "buckets" not in log_data:
+                log_data["buckets"] = log_structure["buckets"]
 
-            # if "buckets" not in log_data:
-            #     log_data["buckets"] = {}
+            buckets = log_data.get("buckets", {})
+            if "aw-watcher-window" not in buckets:
+                buckets["aw-watcher-window"] = log_structure["buckets"]["aw-watcher-window"]
 
-            # if "aw-watcher-window" not in log_data["buckets"]:
-            #     log_data["buckets"]["aw-watcher-window"] = {"events": []}
-
-            events = log_data["buckets"]["aw-watcher-window"]["events"]
+            events = buckets["aw-watcher-window"]["events"]
             events.append(log_entry)
 
             with open(log_file_path_apps, "w", encoding="utf-8") as file:
@@ -394,12 +386,14 @@ def log_afk(duration):
             log_data = log_structure.get("buckets", {}).get(
                 "aw-watcher-afk", {}).get("events", [])
 
-        # if "buckets" not in log_data:
-        #     log_data["buckets"] = log_structure["buckets"]
-        # buckets = log_data.get("buckets", {})
-        # if "aw-watcher-afk" not in log_data["buckets"]:
-        #     log_data["buckets"]["aw-watcher-afk"] = log_structure["buckets"]["aw-watcher-afk"]
-        events = log_data["buckets"]["aw-watcher-afk"]["events"]
+        if "buckets" not in log_data:
+            log_data["buckets"] = log_structure["buckets"]
+
+        buckets = log_data.get("buckets", {})
+        if "aw-watcher-afk" not in buckets:
+            buckets["aw-watcher-afk"] = log_structure["buckets"]["aw-watcher-afk"]
+
+        events = buckets["aw-watcher-afk"]["events"]
         events.append(afk_entry)
 
         with open(log_file_path_apps, "w", encoding="utf-8") as file:
@@ -438,16 +432,14 @@ def log_not_afk(duration):
             log_data = log_structure.get("buckets", {}).get(
                 "aw-watcher-afk", {}).get("events", [])
 
-        # if "buckets" not in log_data:
-        #     log_data["buckets"] = log_structure["buckets"]
-        # buckets = log_data.get("buckets", {})
-        # if "aw-watcher-afk" not in log_data["buckets"]:
-        #     log_data["buckets"]["aw-watcher-afk"] = log_structure["buckets"]["aw-watcher-afk"]
-        # events = buckets.get(
-        #     "aw-watcher-afk", {}).get("events", [])
-        # events.append(not_afk_entry)
+        if "buckets" not in log_data:
+            log_data["buckets"] = log_structure["buckets"]
 
-        events = log_data["buckets"]["aw-watcher-afk"]["events"]
+        buckets = log_data.get("buckets", {})
+        if "aw-watcher-afk" not in buckets:
+            buckets["aw-watcher-afk"] = log_structure["buckets"]["aw-watcher-afk"]
+
+        events = buckets["aw-watcher-afk"]["events"]
         events.append(not_afk_entry)
 
         with open(log_file_path_apps, "w", encoding="utf-8") as file:
