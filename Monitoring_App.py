@@ -23,7 +23,7 @@ hostname = socket.gethostname()
 # Membuat direktori MonitoringApp di %localappdata%
 directory_path_localappdata = os.path.join(local_app_data, 'MonitoringApp')
 
-log_file_apps = "log_apps_" + hostname + ".json"  # Nama file log aplikasi
+log_file_apps = "log_apps_" + hostname.lower() + ".json"  # Nama file log aplikasi
 # Menggabungkan path file log aplikasi
 log_file_path_apps = os.path.join(directory_path_localappdata, log_file_apps)
 
@@ -457,16 +457,15 @@ def log_not_afk(duration):
 
 def check_and_log_activity():
     global last_activity_time, program_start_time
-    afk_timeout = 900  # Timeout AFK 15 menit
+    afk_timeout = 10  # Timeout AFK 15 menit
     afk_start_time = None
     not_afk_start_time = None
     statusnow = "not-afk"  # Status awal "not-afk"
     while True:
         current_time = time.time()
         if statusnow == "not-afk":
-            time.sleep(afk_timeout)
             not_afk_start_time = time.time()
-            duration = not_afk_start_time - current_time
+            duration = not_afk_start_time - program_start_time
             # print("cetak durasi dari not afk :",
             #       duration, "Detik")
             log_not_afk(duration)
