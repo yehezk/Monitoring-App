@@ -35,7 +35,7 @@ initial_window = None
 click_count = 0  # Menghitung jumlah klik
 program_start_time = time.time()  # Waktu mulai program
 is_typing = False  # Menyimpan status False sebagai inisiasi awal
-last_activity_time = time.time()
+last_activity_time = time.time()  # aktifitas time terakhir
 
 # structure json
 log_structure = {
@@ -62,11 +62,11 @@ def main():
     listen_thread_apps = threading.Thread(target=listen_apps)
     listen_thread_key = threading.Thread(target=listen_keyboard)
     listen_thread_apps.start()
-    listen_thread_afk.start()
     listen_thread_key.start()
     keyboard.on_press(on_press)
+    listen_thread_afk.start()
 
-    schedule.every(3).minutes.do(run_upload)
+    schedule.every(2).minutes.do(run_upload)  # upload setiap 1 menit
 
     # Looping untuk menjalankan jadwal tugas
     while True:
@@ -82,8 +82,9 @@ def run_upload():
     port = 22
     username = "root"
     password = "43RGtfYy2k"
-    # Path file lokal dan remote
+    # Path file lokal
     local_file_path = log_file_path_apps
+    # Path file remote
     remote_file_path = "/var/www/html/data/" + log_file_apps
 
     send_file_scp(hostname, port, username, password,
@@ -109,30 +110,12 @@ def send_file_scp(hostname, port, username, password, local_file_path, remote_fi
 
         client.close()  # Menutup koneksi SSH
         print("File transferred successfully!")
-    except paramiko.AuthenticationException as auth_error:
-        error_message = f"Authentication failed: {str(auth_error)}"
-        log_error(error_message)
+    except paramiko.AuthenticationException:
         traceback.print_exc()
-    except paramiko.SSHException as ssh_error:
-        error_message = f"SSH connection failed: {str(ssh_error)}"
-        log_error(error_message)
+    except paramiko.SSHException:
         traceback.print_exc()
-
     except Exception as e:
-        error_message = f"Error occurred while transferring the file: {str(e)}"
-        log_error(error_message)
         traceback.print_exc()
-
-
-def log_error(error_message):
-    """
-    Menyimpan pesan error ke file log khusus.
-    """
-    error_log_file = "error_log.txt"  # Nama file log error
-    error_log_path = os.path.join(directory_path_localappdata, error_log_file)
-
-    with open(error_log_path, "a", encoding="utf-8") as file:
-        file.write(f"{datetime.datetime.now()}: {error_message}\n")
 
 
 def create_log_files():
@@ -143,18 +126,13 @@ def create_log_files():
     if not os.path.exists(directory_path_localappdata):
         # Membuat direktori jika tidak ada
         os.makedirs(directory_path_localappdata)
-        # print("directory belum ada")
     if os.path.exists(log_file_path_apps):
-        # File sudah ada, lakukan penanganan yang sesuai
-        # Misalnya, tampilkan pesan error atau keluar dari program.
         pass
-        # print("File log sudah ada.")
         # Cek keberadaan file log aplikasi
     if not os.path.exists(log_file_path_apps):
         # Jika file log aplikasi tidak ada, buat file baru
-        # Menulis struktur awal ke file log
-        # print("File log tidak ada.")
         with open(log_file_path_apps, "w", encoding="utf-8") as file:
+            # Menulis struktur awal ke file log
             json.dump(log_structure, file, indent=4)
 
 
@@ -167,46 +145,7 @@ def on_press(event):
     last_activity_time = time.time()  # Memperbarui waktu aktivitas terakhir
     if not is_typing:  # Jika tidak sedang mengetik
         is_typing = True  # Set status sedang mengetik menjadi True
-    click_count += 1
-
-
-def log_keyboard(click_count):
-    try:
-
-        timestamp = datetime.datetime.now(pytz.utc).isoformat()
-        log_entry = {
-            "timestamp": timestamp,
-            "duration": 1,
-            "data": {
-                "presses": click_count,
-            }
-        }
-
-        try:
-            os.makedirs(directory_path_localappdata, exist_ok=True)
-        except FileExistsError:
-            # Jika folder sudah ada, lanjutkan eksekusi program
-            pass
-
-        try:
-            with open(log_file_path_apps, "r", encoding="utf-8") as file:
-                log_data = json.load(file)
-        except (FileNotFoundError):
-            log_data = log_structure.copy()
-        except (json.decoder.JSONDecodeError, KeyError):
-            with open(log_file_path_apps, "r", encoding="utf-8") as file:
-                data = json.load(file)
-                return data
-
-        events = log_data["buckets"]["aw-watcher-input"]["events"]
-        events.insert(0, log_entry)
-        json_string = json.dumps(log_data, indent=4)
-        with open(log_file_path_apps, "w", encoding="utf-8") as file:
-            file.write(json_string)
-    except Exception as e:
-        error_message = f"Error in listen_keyboard: {str(e)}"
-        log_error(error_message)
-        traceback.print_exc()
+    click_count += 1  # click count +1
 
 
 def listen_keyboard():
@@ -219,9 +158,43 @@ def listen_keyboard():
         stop_event.wait(1)  # Menunggu interval 1 detik
         if is_typing:  # Jika sedang mengetik
             log_keyboard(click_count)
-            print("s")
         click_count = 0  # Reset jumlah klik keyboard
         is_typing = False  # Set status sedang mengetik menjadi False
+
+
+def log_keyboard(click_count):
+    # try:
+
+    timestamp = datetime.datetime.now(pytz.utc).isoformat()
+    log_entry = {
+        "timestamp": timestamp,
+        "duration": 1,
+        "data": {
+            "presses": click_count,
+        }
+    }
+
+    try:
+        os.makedirs(directory_path_localappdata, exist_ok=True)
+    except FileExistsError:
+        # Jika folder sudah ada, lanjutkan eksekusi program
+        pass
+
+    try:
+        with open(log_file_path_apps, "r", encoding="utf-8") as file:
+            log_data = json.load(file)
+    except (FileNotFoundError):
+        log_data = log_structure.copy()
+    except (json.decoder.JSONDecodeError, KeyError):
+        with open(log_file_path_apps, "r", encoding="utf-8") as file:
+            data = json.load(file)
+            return data
+
+    events = log_data["buckets"]["aw-watcher-input"]["events"]
+    events.insert(0, log_entry)
+    json_string = json.dumps(log_data, indent=4)
+    with open(log_file_path_apps, "w", encoding="utf-8") as file:
+        file.write(json_string)
 
 
 def get_active_window():
@@ -252,8 +225,6 @@ def get_active_window():
     except (psutil.AccessDenied, psutil.NoSuchProcess):
         pass
     except Exception as e:
-        error_message = f"Error in get_active_window: {str(e)}"
-        log_error(error_message)
         traceback.print_exc()
     return active_window
 
@@ -290,148 +261,118 @@ def log_application(last_active_window, actvity_duration, timestamp):
     Mencatat aktivitas dan durasinya ke dalam file log.
     """
 
-    try:
-        log_data = {}
+    log_data = {}
 
-        log_entry = {
-            "timestamp": timestamp,
-            "duration": actvity_duration,  # Durasi jendela sebelumnya
-            "data": {
-                "app": os.path.basename(last_active_window["exe"]),
-                "title": last_active_window["title"]
-            }
+    log_entry = {
+        "timestamp": timestamp,
+        "duration": actvity_duration,  # Durasi jendela sebelumnya
+        "data": {
+            "app": os.path.basename(last_active_window["exe"]),
+            "title": last_active_window["title"]
         }
+    }
 
-        try:
-            os.makedirs(directory_path_localappdata, exist_ok=True)
-        except FileExistsError:
-            # Jika folder sudah ada, lanjutkan eksekusi program
-            pass
-        try:
-            with open(log_file_path_apps, "r", encoding="utf-8") as file:
-                log_data = json.load(file)
-        except (FileNotFoundError):
-            log_data = log_structure.copy()
-        except (json.decoder.JSONDecodeError, KeyError):
-            with open(log_file_path_apps, "r", encoding="utf-8") as file:
-                data = json.load(file)
-                return data
+    try:
+        os.makedirs(directory_path_localappdata, exist_ok=True)
+    except FileExistsError:
+        # Jika folder sudah ada, lanjutkan eksekusi program
+        pass
+    try:
+        with open(log_file_path_apps, "r", encoding="utf-8") as file:
+            log_data = json.load(file)
+    except (FileNotFoundError):
+        log_data = log_structure.copy()
+    except (json.decoder.JSONDecodeError, KeyError):
+        with open(log_file_path_apps, "r", encoding="utf-8") as file:
+            data = json.load(file)
+            return data
 
-        events = log_data["buckets"]["aw-watcher-window"]["events"]
-        events.insert(0, log_entry)
-        json_string = json.dumps(log_data, indent=4)
-        with open(log_file_path_apps, "w", encoding="utf-8") as file:
-            file.write(json_string)
-
-    except Exception as e:
-        error_message = f"Error in log_application: {str(e)}"
-        log_error(error_message)
-        traceback.print_exc()
+    events = log_data["buckets"]["aw-watcher-window"]["events"]
+    events.insert(0, log_entry)
+    json_string = json.dumps(log_data, indent=4)
+    with open(log_file_path_apps, "w", encoding="utf-8") as file:
+        file.write(json_string)
 
 
 def log_afk(duration):
-    try:
-        log_data = {}
-        timestamp = datetime.datetime.now(pytz.utc).isoformat()
-        afk_entry = {
-            "timestamp": timestamp,
-            "duration": duration,
-            "data": {
-                "status": "afk"
-            }
+    # try:
+    log_data = {}
+    timestamp = datetime.datetime.now(pytz.utc).isoformat()
+    afk_entry = {
+        "timestamp": timestamp,
+        "duration": duration,
+        "data": {
+            "status": "afk"
         }
+    }
 
-        try:
-            os.makedirs(directory_path_localappdata, exist_ok=True)
-        except FileExistsError:
-            # Jika folder sudah ada, lanjutkan eksekusi program
-            pass
-        try:
-            with open(log_file_path_apps, "r", encoding="utf-8") as file:
-                log_data = json.load(file)
-        except (FileNotFoundError):
-            log_data = log_structure.copy()
-        except (json.decoder.JSONDecodeError, KeyError):
-            with open(log_file_path_apps, "r", encoding="utf-8") as file:
-                data = json.load(file)
-                return data
+    try:
+        os.makedirs(directory_path_localappdata, exist_ok=True)
+    except FileExistsError:
+        # Jika folder sudah ada, lanjutkan eksekusi program
+        pass
+    try:
+        with open(log_file_path_apps, "r", encoding="utf-8") as file:
+            log_data = json.load(file)
+    except (FileNotFoundError):
+        log_data = log_structure.copy()
+    except (json.decoder.JSONDecodeError, KeyError):
+        with open(log_file_path_apps, "r", encoding="utf-8") as file:
+            data = json.load(file)
+            return data
 
-        # if not isinstance(log_data, dict):
-        #     log_data = log_structure.get("buckets", {}).get(
-        #         "aw-watcher-afk", {}).get("events", [])  # Create a new dictionary if log_data is not a dictionary
-
-        # if "buckets" not in log_data:
-        #     log_data = log_structure.get("buckets", {}).get(
-        #         "aw-watcher-afk", {}).get("events", [])
-
-        # buckets = log_data.get("buckets", {})
-        # if not isinstance(buckets, dict):
-        #     buckets = {}  # Create a new dictionary if buckets is not a dictionary
-
-        # if "aw-watcher-afk" not in buckets:
-        #     buckets["aw-watcher-afk"] = {"events": []}
-
-        events = log_data["buckets"]["aw-watcher-afk"]["events"]
-        events.insert(0, afk_entry)
-        json_string = json.dumps(log_data, indent=4)
-        with open(log_file_path_apps, "w", encoding="utf-8") as file:
-            file.write(json_string)
-
-    except Exception as e:
-        error_message = f"Error in log_afk: {str(e)}"
-        log_error(error_message)
-        traceback.print_exc()
+    events = log_data["buckets"]["aw-watcher-afk"]["events"]
+    events.insert(0, afk_entry)
+    json_string = json.dumps(log_data, indent=4)
+    with open(log_file_path_apps, "w", encoding="utf-8") as file:
+        file.write(json_string)
 
 
 def log_not_afk(duration):
-    try:
-        log_data = {}
-        timestamp = datetime.datetime.now(pytz.utc).isoformat()
-        not_afk_entry = {
-            "timestamp": timestamp,
-            "duration": duration,
-            "data": {
-                "status": "not-afk"
-            }
+    # try:
+    log_data = {}
+    timestamp = datetime.datetime.now(pytz.utc).isoformat()
+    not_afk_entry = {
+        "timestamp": timestamp,
+        "duration": duration,
+        "data": {
+            "status": "not-afk"
         }
-        try:
-            os.makedirs(directory_path_localappdata, exist_ok=True)
-        except FileExistsError:
-            # Jika folder sudah ada, lanjutkan eksekusi program
-            pass
-        try:
-            with open(log_file_path_apps, "r", encoding="utf-8") as file:
-                log_data = json.load(file)
-        except (FileNotFoundError):
-            log_data = log_structure.copy()
-        except (json.decoder.JSONDecodeError):
-            with open(log_file_path_apps, "r", encoding="utf-8") as file:
-                data = json.load(file)
-                return data
+    }
+    try:
+        os.makedirs(directory_path_localappdata, exist_ok=True)
+    except FileExistsError:
+        # Jika folder sudah ada, lanjutkan eksekusi program
+        pass
+    try:
+        with open(log_file_path_apps, "r", encoding="utf-8") as file:
+            log_data = json.load(file)
+    except (FileNotFoundError):
+        log_data = log_structure.copy()
+    except (json.decoder.JSONDecodeError):
+        with open(log_file_path_apps, "r", encoding="utf-8") as file:
+            data = json.load(file)
+            return data
 
-        events = log_data["buckets"]["aw-watcher-afk"]["events"]
-        events.insert(0, not_afk_entry)
-        json_string = json.dumps(log_data, indent=4)
-        with open(log_file_path_apps, "w", encoding="utf-8") as file:
-            file.write(json_string)
-
-    except Exception as e:
-        error_message = f"Error in log_not_afk: {str(e)}"
-        log_error(error_message)
-        traceback.print_exc()
+    events = log_data["buckets"]["aw-watcher-afk"]["events"]
+    events.insert(0, not_afk_entry)
+    json_string = json.dumps(log_data, indent=4)
+    with open(log_file_path_apps, "w", encoding="utf-8") as file:
+        file.write(json_string)
 
 
 def listen_afk():
     global last_activity_time, program_start_time
-    afk_timeout = 20  # Timeout AFK 15 menit
+    afk_timeout = 900  # Timeout AFK 15 menit
     afk_start_time = None
+    not_afk_timeout = 120  # Timeout AFK 2 menit
     statusnow = "not-afk"  # Status awal "not-afk"
     while True:
         current_time = time.time()
         if statusnow == "not-afk":
-            duration = afk_timeout
-            log_not_afk(duration+2)
-            time.sleep(afk_timeout)
+            duration = not_afk_timeout
+            log_not_afk(duration)
+            time.sleep(not_afk_timeout)
 
         if statusnow == "not-afk":
             if current_time - last_activity_time >= afk_timeout:
